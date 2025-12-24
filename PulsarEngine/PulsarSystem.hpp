@@ -12,88 +12,111 @@
 #include <Config.hpp>
 #include <Network/Network.hpp>
 #include <Network/MatchCommand.hpp>
-
+#include <Gamemodes/OnlineTT/OnlineTT.hpp>
 
 namespace Pulsar {
 namespace KO {
 class Mgr;
-}//namespace KO
+}  // namespace KO
+
+namespace LapKO {
+class Mgr;
+}  // namespace LapKO
 
 class ConfigFile;
-
 
 enum Context {
     PULSAR_CT = 0,
     PULSAR_200,
+    PULSAR_200_WW,
     PULSAR_FEATHER,
     PULSAR_UMTS,
+    PULSAR_SMTS,
+    PULSAR_KOFINAL,
     PULSAR_MEGATC,
-    PULSAR_HAW,
-    PULSAR_MIIHEADS,
     PULSAR_MODE_OTT,
     PULSAR_MODE_KO,
-    PULSAR_POINT_DISTRO,
-    PULSAR_MODE_BOMB_BLAST,
-    PULSAR_MODE_INFINITE_ACCELERATION,
-    PULSAR_MODE_BANANA_SLIP,
-    PULSAR_MODE_RANDOM_ITEMS,
-    PULSAR_MODE_UNFAIR_ITEMS,
-    PULSAR_MODE_BLUE_SHELL_MADNESS,
-    PULSAR_MODE_MUSHROOM_DASH,
-    PULSAR_MODE_BUMPER_KARTS,
-    PULSAR_MODE_RANDOM_EFFECTS,
-    PULSAR_MODE_ITEM_RAIN,
-    PULSAR_MODE_SHELL_BREAK,
-    PULSAR_MODE_CRAZY_ITEMS,
-    PULSAR_MODE_RIIBALANCED,
-    PULSAR_MODE_ULTRAS_ENABLED,
-    PULSAR_FRIENDLY_FIRE,
-    PULSAR_KOFINAL,
-    PULSAR_CONTEXT_COUNT,
+    PULSAR_MODE_LAPKO,
+    PULSAR_CHARRESTRICTLIGHT,
+    PULSAR_CHARRESTRICTMID,
+    PULSAR_CHARRESTRICTHEAVY,
+    PULSAR_KARTRESTRICT,
+    PULSAR_BIKERESTRICT,
+    PULSAR_500,
+    PULSAR_THUNDERCLOUD,
+    PULSAR_REGS,
+    PULSAR_RETROS,
+    PULSAR_CTS,
+    PULSAR_ALL,
+    PULSAR_CHANGECOMBO,
+    PULSAR_EXTENDEDTEAMS,
+    PULSAR_FFA,
+    PULSAR_ELIMINATION,
+    PULSAR_STARTRETROS,
+    PULSAR_STARTCTS,
+    PULSAR_STARTREGS,
+    PULSAR_START200,
+    PULSAR_STARTOTT,
+    PULSAR_STARTITEMRAIN,
 };
 
-
+enum Context2 {
+    PULSAR_MIIHEADS,
+    PULSAR_TRANSMISSIONINSIDE,
+    PULSAR_TRANSMISSIONOUTSIDE,
+    PULSAR_TRANSMISSIONVANILLA,
+    PULSAR_ITEMMODERANDOM,
+    PULSAR_ITEMMODEBLAST,
+    PULSAR_ITEMMODERAIN,
+    PULSAR_ITEMMODESTORM,
+    PULSAR_HAW,
+    PULSAR_RANKING,
+    PULSAR_ITEMBOXRESPAWN,
+};
 
 class System {
-protected:
+   protected:
     System();
-private:
-    //System functions
+
+   public:
+    // System functions
     void Init(const ConfigFile& conf);
     void InitInstances(const ConfigFile& conf, IOType type);
     void InitIO(IOType type) const;
     void InitCups(const ConfigFile& conf);
     void InitSettings(const u16* totalTrophyCount) const;
     void UpdateContext();
-protected:
-    //Virtual
+    static void UpdateContextWrapper();
+    static void ClearOttContext();
+
+   protected:
+    // Virtual
     virtual void AfterInit() {};
-public:
-    u8 GetTransmission;
-    u8 transmissions[12];
-    u8 lastSelectedTransmission;
-    u32 lastSelectedTransmissionId;
+
+   public:
     static System* sInstance;
+
     virtual void SetUserInfo(Network::ResvInfo::UserInfo& userInfo) {};
     virtual bool CheckUserInfo(const Network::ResvInfo::UserInfo& userInfo) { return true; };
-    //Deprecated because you can now freely expand ROOM packets and do what you need to with them
-    //virtual u8 SetPackROOMMsg() { return 0; } //Only called for hosts
-    //virtual void ParsePackROOMMsg(u8 msg) {}  //Only called for non-hosts
+    // Deprecated because you can now freely expand ROOM packets and do what you need to with them
+    // virtual u8 SetPackROOMMsg() { return 0; } //Only called for hosts
+    // virtual void ParsePackROOMMsg(u8 msg) {}  //Only called for non-hosts
     const Info& GetInfo() const { return this->info; }
 
     bool IsContext(Context context) const { return (this->context & (1 << context)) != 0; }
+    bool IsContext(Context2 context2) const { return (this->context2 & (1 << context2)) != 0; }
     static s32 OnSceneEnter(Random& random);
 
     const char* GetModFolder() const { return modFolderName; }
     static void CreateSystem();
 
-    //Network
+    // Network
     static asmFunc GetRaceCount();
 
-    //Modes
+    // Modes
     static asmFunc GetNonTTGhostPlayersCount();
 
-    //BMG
+    // BMG
     const BMGHolder& GetBMG() const { return customBmgs; }
     /*
     #define PatchRegion(addr)\
@@ -105,40 +128,41 @@ public:
         kmBranch(addr, GetWiimmfiRegionStatic##addr);\
         kmPatchExitPoint(GetWiimmfiRegionStatic##addr, ##addr + 4);
     */
-    //VARIABLES
-    EGG::ExpHeap* const heap; //0x4
-    EGG::TaskThread* const taskThread; //0x8
-    //Constants
+    // VARIABLES
+    EGG::ExpHeap* const heap;  // 0x4
+    EGG::TaskThread* const taskThread;  // 0x8
+    // Constants
 
-private:
-    char modFolderName[IOS::ipcMaxFileName + 1]; //0xC
+   public:
+    char modFolderName[IOS::ipcMaxFileName + 1];  // 0xC
     u8 padding[2];
-    Info info; //0x1c
+    Info info;  // 0x1c
     u32 context;
+    u32 context2;
 
-public:
-    //Network variables only set when reading a ROOM packet that starts the GP; they are only ever used in UpdateState; no need to clear them as ROOM will reupdat ethem
+   public:
+    // Network variables only set when reading a ROOM packet that starts the GP; they are only ever used in UpdateState; no need to clear them as ROOM will reupdat ethem
     Network::Mgr netMgr;
 
     TTMode ttMode;
 
-    //LECODE data
+    // LECODE data
     LECODE::Mgr lecodeMgr;
 
-    //Modes
+    // Modes
     KO::Mgr* koMgr;
-    u32 ottVoteState;
-    u8 currentLap;
+    LapKO::Mgr* lapKoMgr;
     bool ottHideNames;
-    u8 nonTTGhostPlayersCount; //because a ghost can be added in vs, racedata's playercount is not reliable
+    OTT::Mgr ottMgr;
+    u8 nonTTGhostPlayersCount;  // because a ghost can be added in vs, racedata's playercount is not reliable
 
-private:
-    //Custom BMGS
+   private:
+    // Custom BMGS
     BMGHolder customBmgs;
     BMGHeader* rawBmg;
 
-public:
-    //string pool
+   public:
+    // string pool
     static const char pulsarString[];
     static const char CommonAssets[];
     static const char breff[];
@@ -146,10 +170,10 @@ public:
     static const char* ttModeFolders[];
 
     struct Inherit {
-        //static_assert(is_base_of<System, Child>::value, "Pulsar::System is not a parent of your class");
+        // static_assert(is_base_of<System, Child>::value, "Pulsar::System is not a parent of your class");
         typedef System* (*CreateFunc)();
         Inherit(CreateFunc func) {
-            //static_assert(inherit == nullptr, "Can only inherit once from Pulsar::System");
+            // static_assert(inherit == nullptr, "Can only inherit once from Pulsar::System");
             create = func;
             inherit = this;
         }
@@ -158,6 +182,6 @@ public:
     static Inherit* inherit;
     friend class Info;
 };
-} //namespace Pulsar
+}  // namespace Pulsar
 
 #endif

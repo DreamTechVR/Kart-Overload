@@ -5,7 +5,6 @@
 #include <MarioKartWii/Item/Obj/ItemObj.hpp>
 #include <MarioKartWii/Kart/KartPlayer.hpp>
 #include <PulsarSystem.hpp>
-#include <MKVN.hpp>
 
 namespace Pulsar {
 namespace ItemRain {
@@ -13,32 +12,31 @@ namespace ItemRain {
 static s32 sRaceInfoFrameCounter = 0;
 
 static int ITEMS_PER_SPAWN = 1;
-static int SPAWN_HEIGHT = 2500;
+static int SPAWN_HEIGHT = 2000;
 static int SPAWN_RADIUS = 8000;
-static int MAX_ITEM_LIFETIME = 200;
+static int MAX_ITEM_LIFETIME = 570;
 static int DESPAWN_CHECK_INTERVAL = 2;
 
 void ItemModeCheck() {
-    if (RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_HOST || 
-        RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_NONHOST || 
+    if (RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_HOST ||
+        RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_NONHOST ||
         RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_NONE) {
-        if (U16_GAMEPLAYC2 == 0x0001) {
-            ITEMS_PER_SPAWN = 4;
-            MAX_ITEM_LIFETIME = 240;
+        if (Pulsar::System::sInstance->IsContext(PULSAR_ITEMMODESTORM)) {
+            ITEMS_PER_SPAWN = 3;
+            MAX_ITEM_LIFETIME = 180;
+        } else {
+            ITEMS_PER_SPAWN = 1;
+            MAX_ITEM_LIFETIME = 570;
         }
-        else {
-            ITEMS_PER_SPAWN = 2;
-            MAX_ITEM_LIFETIME = 540;
-        }
+    } else if ((RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_VS_REGIONAL || RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_JOINING_REGIONAL) && (System::sInstance->netMgr.region == 0x0D)) {
+        ITEMS_PER_SPAWN = 1;
+        MAX_ITEM_LIFETIME = 570;
     }
 }
 static RaceLoadHook ItemModeCheckHook(ItemModeCheck);
 
 static int GetSpawnInterval(u8 playerCount) {
-    if (playerCount <= 3) return 6;
-    if (playerCount <= 6) return 12;
-    if (playerCount <= 9) return 18;
-    return 24;
+    return 9;
 }
 
 static u32 GetRandom() {
@@ -57,30 +55,52 @@ static ItemObjId GetRandomItem() {
         ItemObjId id;
         u32 weight;
     };
-        
-    static const ItemWeight weightedItems[] = {
-        {OBJ_MUSHROOM, 15},
-        {OBJ_GREEN_SHELL, 7},
-        {OBJ_BANANA, 7},
-        {OBJ_RED_SHELL, 4},
-        {OBJ_FAKE_ITEM_BOX, 6},
-        {OBJ_BOBOMB, 3},
-        {OBJ_STAR, 6},
-        {OBJ_BLUE_SHELL, 5},
-        {OBJ_GOLDEN_MUSHROOM, 5},
-        {OBJ_MEGA_MUSHROOM, 6},
-        {OBJ_POW_BLOCK, 1},
+
+    const RacedataScenario& scenario = Racedata::sInstance->racesScenario;
+    const GameMode mode = scenario.settings.gamemode;
+    static const ItemWeight weightsVS[] = {
+        {OBJ_MUSHROOM, 20},
+        {OBJ_GREEN_SHELL, 10},
+        {OBJ_BANANA, 15},
+        {OBJ_RED_SHELL, 8},
+        {OBJ_FAKE_ITEM_BOX, 8},
+        {OBJ_BOBOMB, 1},
+        {OBJ_STAR, 10},
+        {OBJ_BLUE_SHELL, 3},
+        {OBJ_GOLDEN_MUSHROOM, 7},
+        {OBJ_MEGA_MUSHROOM, 12},
         {OBJ_BULLET_BILL, 5},
-        {OBJ_LIGHTNING, 2}
     };
-    const u32 totalWeight = 130;
+    static const ItemWeight weightsBattle[] = {
+        {OBJ_MUSHROOM, 20},
+        {OBJ_GREEN_SHELL, 10},
+        {OBJ_BANANA, 15},
+        {OBJ_RED_SHELL, 8},
+        {OBJ_FAKE_ITEM_BOX, 8},
+        {OBJ_BOBOMB, 1},
+        {OBJ_STAR, 10},
+        {OBJ_BLUE_SHELL, 8},
+        {OBJ_GOLDEN_MUSHROOM, 7},
+        {OBJ_MEGA_MUSHROOM, 12},
+        {OBJ_BULLET_BILL, 0},
+    };
+
+    const ItemWeight* weights = weightsVS;
+    u32 count = sizeof(weightsVS) / sizeof(weightsVS[0]);
+    if (mode == MODE_BATTLE || mode == MODE_PRIVATE_BATTLE) {
+        weights = weightsBattle;
+        count = sizeof(weightsBattle) / sizeof(weightsBattle[0]);
+    }
+
+    u32 totalWeight = 0;
+    for (u32 i = 0; i < count; i++) totalWeight += weights[i].weight;
+    if (totalWeight == 0) return OBJ_MUSHROOM;
+
     u32 roll = GetRandom() % totalWeight;
     u32 cumulative = 0;
-    for (u32 i = 0; i < sizeof(weightedItems) / sizeof(weightedItems[0]); i++) {
-        cumulative += weightedItems[i].weight;
-        if (roll < cumulative) {
-            return weightedItems[i].id;
-        }
+    for (u32 i = 0; i < count; i++) {
+        cumulative += weights[i].weight;
+        if (roll < cumulative) return weights[i].id;
     }
     return OBJ_MUSHROOM;
 }
@@ -125,20 +145,23 @@ void DespawnItems(bool checkDistance = false) {
 void SpawnItemRain() {
     const RacedataScenario& scenario = Racedata::sInstance->racesScenario;
     const GameMode mode = scenario.settings.gamemode;
-    if (U16_GAMEPLAYA != 0x0001 && U16_GAMEPLAYC2 != 0x0001) return;
+    if (!Pulsar::System::sInstance->IsContext(PULSAR_ITEMMODERAIN) && !Pulsar::System::sInstance->IsContext(PULSAR_ITEMMODESTORM)) return;
     if (Pulsar::System::sInstance->IsContext(PULSAR_MODE_OTT)) return;
+    if (RKNet::Controller::sInstance->roomType != RKNet::ROOMTYPE_FROOM_HOST && RKNet::Controller::sInstance->roomType != RKNet::ROOMTYPE_FROOM_NONHOST &&
+        RKNet::Controller::sInstance->roomType != RKNet::ROOMTYPE_NONE && RKNet::Controller::sInstance->roomType != RKNet::ROOMTYPE_VS_REGIONAL &&
+        RKNet::Controller::sInstance->roomType != RKNet::ROOMTYPE_JOINING_REGIONAL) return;
     if (mode == MODE_TIME_TRIAL) return;
     if (!Racedata::sInstance || !Raceinfo::sInstance || !Item::Manager::sInstance) return;
     if (!Raceinfo::sInstance->IsAtLeastStage(RACESTAGE_RACE)) return;
 
     sRaceInfoFrameCounter++;
-        
+
     if ((sRaceInfoFrameCounter % DESPAWN_CHECK_INTERVAL) == 0) {
         DespawnItems();
     }
     if ((sRaceInfoFrameCounter % (DESPAWN_CHECK_INTERVAL * 2)) == 0) {
         DespawnItems(true);
-    }   
+    }
     u8 playerCount = Pulsar::System::sInstance->nonTTGhostPlayersCount;
     if (playerCount == 0) return;
     if ((sRaceInfoFrameCounter % GetSpawnInterval(playerCount)) != 0) return;
@@ -148,12 +171,21 @@ void SpawnItemRain() {
     dummyDirection.y = 0.0f;
     dummyDirection.z = 0.0f;
 
-    for (int i = 0; i < ITEMS_PER_SPAWN; i++) {
-        int spawnDivisor = (sRaceInfoFrameCounter < 300) ? 4 : 1; 
+    Vec3 positions[12];
+    for (int i = 0; i < playerCount && i < 12; i++) positions[i] = Item::Manager::sInstance->players[i].GetPosition();
 
-        for (int playerIdx = 0; playerIdx < playerCount; playerIdx += spawnDivisor) {
+    for (int i = 0; i < ITEMS_PER_SPAWN; i++) {
+        for (int playerIdx = 0; playerIdx < playerCount; playerIdx++) {
             Item::Player& player = Item::Manager::sInstance->players[playerIdx];
-            Vec3 playerPos = player.GetPosition();
+            bool isLocal = false;
+            if (player.kartPlayer && player.kartPlayer->IsLocal()) {
+                isLocal = true;
+            } else if (scenario.players[playerIdx].playerType == PLAYER_REAL_LOCAL) {
+                isLocal = true;
+            }
+            if (!isLocal) continue;
+
+            Vec3 playerPos = positions[playerIdx];
             Vec3 forwardDir;
             if (player.kartPlayer) {
                 forwardDir = player.kartPlayer->GetMovement().dir;
@@ -169,7 +201,7 @@ void SpawnItemRain() {
 
             float forward = GetRandomRange(1000.0f, 12000.0f);
             float side = GetRandomRange(-SPAWN_RADIUS, SPAWN_RADIUS);
-                
+
             Vec3 spawnPos;
             spawnPos.x = playerPos.x + forwardDir.x * forward + rightDir.x * side;
             spawnPos.y = playerPos.y + SPAWN_HEIGHT;
@@ -183,7 +215,7 @@ void SpawnItemRain() {
                     spawnPos.x = playerPos.x + forwardDir.x * newForward + rightDir.x * newSide;
                     spawnPos.z = playerPos.z + forwardDir.z * newForward + rightDir.z * newSide;
                 }
-                    
+
                 Item::Manager::sInstance->CreateItemDirect(selectedItem, &spawnPos, &dummyDirection, playerIdx);
             }
         }
@@ -191,5 +223,5 @@ void SpawnItemRain() {
 }
 RaceFrameHook ItemRainHook(SpawnItemRain);
 
-} // namespace ItemRain
-} // namespace Pulsar
+}  // namespace ItemRain
+}  // namespace Pulsar

@@ -94,7 +94,7 @@
 
         <Style BasedOn="{StaticResource Boxes}" TargetType="TextBox" x:Key="GhostBoxes">
             <Setter Property="Margin" Value="15,-8,15,0"/>
-            <Setter Property="Text"   Value=""/>
+            <Setter Property="Text"   Value="RKG File"/>
         </Style>
         <Style BasedOn="{StaticResource TopLabels}" TargetType="TextBlock" x:Key="GhostTopLabels">
             <Setter Property="Margin" Value="10,33,0,0"/>
@@ -187,6 +187,8 @@
                             <RowDefinition Height="2*" />
                         </Grid.RowDefinitions>
 
+                        <Image Grid.ColumnSpan="7" Margin="4,-23,0,-3" Grid.RowSpan="5" Source="/Resources/space.jpg" Stretch="Fill"/>
+
                         <TextBlock x:Name="FileLabel"    Grid.Row="0" Grid.Column="1" Text="File Names"          Grid.RowSpan="2"  Style="{StaticResource TopLabels}"/>
                         <TextBlock x:Name="NameLabel"    Grid.Row="0" Grid.Column="2" Text="Track Names"         Grid.RowSpan="2"  Style="{StaticResource TopLabels}"/>
                         <TextBlock x:Name="AuthorLabel"  Grid.Row="0" Grid.Column="3" Text="Author Names"        Grid.RowSpan="2"  Style="{StaticResource TopLabels}"/>
@@ -241,6 +243,7 @@
                         <TextBlock x:Name="Music2Label" Grid.Row="2" Grid.Column="6" Text="Music2" Style="{StaticResource SlotBoxes}"/>
                         <TextBlock x:Name="Music3Label" Grid.Row="3" Grid.Column="6" Text="Music3" Style="{StaticResource SlotBoxes}"/>
                         <TextBlock x:Name="Music4Label" Grid.Row="4" Grid.Column="6" Text="Music4" Style="{StaticResource SlotBoxes}"/>
+                        <TextBlock x:Name="NameLabel_Copy"  FontSize="20"  Grid.Row="0" Grid.Column="2" Text="Overload Editor 1.3 LITE"  Style="{StaticResource TopLabels}" Margin="79,-5,0,0" Grid.ColumnSpan="2" HorizontalAlignment="Left"/>
 
                     </Grid>
                 </DockPanel>
@@ -262,8 +265,8 @@
                         <ColumnDefinition Width="4*" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBox   x:Name="ModFolder"     Grid.Column="3"  Width="127" Height="24"  TextChanged="OnModFolderChange" Style="{StaticResource Boxes}" Margin="9,22,57,18"/>
-                    <TextBlock Text="Mod Folder Name" Grid.Column="2" Style="{StaticResource Blocks}" HorizontalAlignment="Left" Margin="34,26,0,0"/>
+                    <TextBox   x:Name="ModFolder"     Grid.Column="3"  Width="127" Height="24"  TextChanged="OnModFolderChange" Style="{StaticResource Boxes}" Margin="39,72,39,48" Grid.Row="3"/>
+                    <TextBlock Text="Mod Folder Name" Grid.Column="3" Style="{StaticResource Blocks}" Margin="0,24,0,0" Grid.Row="3"/>
 
 
 
@@ -308,7 +311,9 @@
                             </Style>
                         </DatePicker.Resources>
                     </DatePicker>
-                    <Button x:Name="EditBMG" Grid.Row="1" Grid.Column="4" VerticalAlignment="Top" Content="Edit Pulsar BMGs" FontSize="14" Width="120" Height="25" Click="OnEditPulsarBMGsClick"/>
+                    <Button x:Name="EditBMG" Grid.Row="1" Grid.Column="4" VerticalAlignment="Top" Content="Edit Mod Texts" FontSize="14" Width="120" Height="25" Click="OnEditPulsarBMGsClick"/>
+                    <TextBlock Grid.Column="3" FontSize="20" Text="Options" Style="{StaticResource Blocks}" VerticalAlignment="Center"/>
+                    <TextBlock Text="JP=0 US=1 EU=2 SK=5" Grid.Row="3" Grid.Column="1" Margin="44,75,0,0" HorizontalAlignment="Left" Style="{StaticResource Blocks}" />
 
 
 

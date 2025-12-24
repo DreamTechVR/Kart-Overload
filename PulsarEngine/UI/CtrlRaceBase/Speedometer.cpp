@@ -5,22 +5,22 @@
 namespace Pulsar {
 namespace UI {
 u32 CtrlRaceSpeedo::Count() {
-    if(Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_RACE4, SETTINGS_SPEEDOMETER) == RACESETTING_SOM_DISABLED) return 0;
+    if (Settings::Mgr::Get().GetUserSettingValue(Settings::SETTINGSTYPE_RACE1, RADIO_SPEEDOMETER) == SOM_DISABLED) return 0;
     const RacedataScenario& scenario = Racedata::sInstance->racesScenario;
     u32 localPlayerCount = scenario.localPlayerCount;
     const SectionId sectionId = SectionMgr::sInstance->curSection->sectionId;
-    if(sectionId >= SECTION_WATCH_GHOST_FROM_CHANNEL && sectionId <= SECTION_WATCH_GHOST_FROM_MENU) localPlayerCount += 1;
-    if(localPlayerCount == 0 && (scenario.settings.gametype & GAMETYPE_ONLINE_SPECTATOR)) localPlayerCount = 1;
+    if (sectionId >= SECTION_WATCH_GHOST_FROM_CHANNEL && sectionId <= SECTION_WATCH_GHOST_FROM_MENU) localPlayerCount += 1;
+    if (localPlayerCount == 0 && (scenario.settings.gametype & GAMETYPE_ONLINE_SPECTATOR)) localPlayerCount = 1;
     return localPlayerCount;
 }
 void CtrlRaceSpeedo::Create(Page& page, u32 index, u32 count) {
     u8 speedoType = (count == 3) ? 4 : count;
-    for(int i = 0; i < count; ++i) {
-        CtrlRaceSpeedo* som = new(CtrlRaceSpeedo);
+    for (int i = 0; i < count; ++i) {
+        CtrlRaceSpeedo* som = new (CtrlRaceSpeedo);
         page.AddControl(index + i, *som, 0);
         char variant[0x20];
-        int pos = i;
-        if(count == 1 && Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_RACE4, SETTINGS_SPEEDOMETER) == RACESETTING_SOM_RIGHT) pos = 1;
+        int pos = 1;
+        // if (count == 1 && Settings::Mgr::Get().GetUserSettingValue(Settings::SETTINGSTYPE_RACE, SETTINGRACE_RADIO_SOM) == SOM_RIGHT) pos = 1;
         snprintf(variant, 0x20, "Speedo_%1d_%1d", speedoType, pos);
         som->Load(variant, i);
     }
@@ -30,16 +30,15 @@ static CustomCtrlBuilder SOM(CtrlRaceSpeedo::Count, CtrlRaceSpeedo::Create);
 void CtrlRaceSpeedo::Load(const char* variant, u8 id) {
     this->hudSlotId = id;
     ControlLoader loader(this);
-    const char* anims[] ={
+    const char* anims[] = {
         "Hundreds", "Hundreds", nullptr,
         "Tens", "Tens", nullptr,
         "Units", "Units", nullptr,
-        "Dot", "Dot",nullptr,
+        "Dot", "Dot", nullptr,
         "Tenths", "Tenths", nullptr,
         "Hundredths", "Hundredths", nullptr,
         "Thousandths", "Thousandths", nullptr,
-        nullptr
-    };
+        nullptr};
 
     loader.Load(UI::raceFolder, "PULSpeedo", variant, anims);
 
@@ -62,7 +61,7 @@ void CtrlRaceSpeedo::Init() {
 
 void CtrlRaceSpeedo::OnUpdate() {
     this->UpdatePausePosition();
-    const u8 digits = Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_RACE4, SETTINGS_SPEEDOMETER_FRACTIONAL);
+    const u8 digits = Settings::Mgr::Get().GetUserSettingValue(Settings::SETTINGSTYPE_RACE1, RADIO_SPEEDOMETER) - 1;
     const Kart::Pointers& pointers = Kart::Manager::sInstance->players[this->GetPlayerId()]->pointers;
     const Kart::Physics* physics = pointers.kartBody->kartPhysicsHolder->physics;
 
@@ -71,14 +70,11 @@ void CtrlRaceSpeedo::OnUpdate() {
     MTX::PSVECAdd(&physics->speed3, &sum, &sum);
     float speed = MTX::PSVECMag(&sum);
     float speedCap = pointers.kartMovement->hardSpeedLimit;
-    if(speed > speedCap) speed = speedCap;
+    if (speed > speedCap) speed = speedCap;
 
-    if (speed > 999.999f) {
-        speed = 999.999f; //cap at 999.999 km/h
-    }
-    u32 speedValue = static_cast<u32>(speed * 1000.0f);
+    const u32 speedValue = static_cast<u32>(speed * 1000.0f);
 
-    //10 means empty, 11 dot
+    // 10 means empty, 11 dot
     u32 hundreds = speedValue % 1000000 / 100000;
     u32 tens = speedValue % 100000 / 10000;
     u32 units = speedValue % 10000 / 1000;
@@ -87,7 +83,7 @@ void CtrlRaceSpeedo::OnUpdate() {
     u32 hundredths = digits >= 2 ? speedValue % 100 / 10 : 10;
     u32 thousandths = digits == 3 ? speedValue % 100 / 10 : 10;
 
-    if(speedValue < 10000) { //shift everything by 2 to the left
+    if (speedValue < 10000) {  // shift everything by 2 to the left
         hundreds = units;
         tens = dot;
         units = tenths;
@@ -95,8 +91,7 @@ void CtrlRaceSpeedo::OnUpdate() {
         tenths = thousandths;
         hundredths = 10;
         thousandths = 10;
-    }
-    else if(speedValue < 100000) {
+    } else if (speedValue < 100000) {
         hundreds = tens;
         tens = units;
         units = dot;
@@ -112,12 +107,12 @@ void CtrlRaceSpeedo::OnUpdate() {
 }
 
 void CtrlRaceSpeedo::Animate(const SpeedArg* args) {
-    for(int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 7; ++i) {
         AnimationGroup& group = this->animator.GetAnimationGroupById(i);
         float frame = 0.0f;
-        if(args != nullptr) frame = static_cast<float>(args->values[i]);
+        if (args != nullptr) frame = static_cast<float>(args->values[i]);
         group.PlayAnimationAtFrameAndDisable(0, frame);
     }
 }
-}//namespace UI
-}//namespace Pulsar
+}  // namespace UI
+}  // namespace Pulsar

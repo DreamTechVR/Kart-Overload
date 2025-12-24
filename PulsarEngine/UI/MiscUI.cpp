@@ -2,6 +2,8 @@
 #include <MarioKartWii/UI/Ctrl/CtrlRace/CtrlRaceWifi.hpp>
 #include <MarioKartWii/UI/Page/Other/Title.hpp>
 #include <MarioKartWii/UI/Page/Other/Message.hpp>
+#include <MarioKartWii/Kart/KartLink.hpp>
+#include <Settings/Settings.hpp>
 #include <MarioKartWii/RKSYS/RKSYSMgr.hpp>
 #include <MarioKartWii/GlobalFunctions.hpp>
 #include <PulsarSystem.hpp>
@@ -9,16 +11,13 @@
 #include <Gamemodes/KO/KOMgr.hpp>
 #include <Gamemodes/KO/KORaceEndPage.hpp>
 #include <Debug/Debug.hpp>
+#include <Gamemodes/LapKO/LapKOMgr.hpp>
 #include <UI/UI.hpp>
-#include <MKVN.hpp>
-#include <MarioKartWii/UI/Section/SectionMgr.hpp>
-
-
 
 namespace Pulsar {
 
 namespace UI {
-//No ghost saving on RKSYS
+// No ghost saving on RKSYS
 kmWrite32(0x8054913C, 0x60000000);
 kmWrite32(0x80855f48, 0x48000148);
 
@@ -26,31 +25,30 @@ static PageId AfterWifiResults(PageId id) {
     const SectionMgr* sectionMgr = SectionMgr::sInstance;
     const System* system = System::sInstance;
 
-    if (system->IsContext(PULSAR_MODE_KO)) id = system->koMgr->KickPlayersOut(id); //return KO::RaceEndPage with the choice to spectate if the local players are out 
-    if (id != static_cast<PageId>(KO::RaceEndPage::id) && system->IsContext(PULSAR_HAW)) {
-        ChooseNextTrack* chooseNext = ExpSection::GetSection()->GetPulPage<ChooseNextTrack>();
-        if (chooseNext != nullptr) id = chooseNext->GetPageAfterWifiResults(id);
-    }
+    if (system->IsContext(PULSAR_MODE_KO)) id = system->koMgr->KickPlayersOut(id);  // return KO::RaceEndPage with the choice to spectate if the local players are out
+    // if (id != static_cast<PageId>(KO::RaceEndPage::id) && system->IsContext(PULSAR_HAW)) {
+    //     ChooseNextTrack* chooseNext = ExpSection::GetSection()->GetPulPage<ChooseNextTrack>();
+    //     if (chooseNext != nullptr) id = chooseNext->GetPageAfterWifiResults(id);
+    // }
     return id;
 }
 kmBranch(0x80646754, AfterWifiResults);
 
-//Credit to Kazuki for making the original ASM code, and Brawlbox for porting it to C++
-//Global reroute: force single-player Battle "next battle" to go to VS "next race" (Cup Selection)
+// Credit to Kazuki for making the original ASM code, and Brawlbox for porting it to C++
 static void LaunchRiivolutionButton(SectionMgr* sectionMgr) {
-    SectionId id = sectionMgr->nextSectionId;
-
-    if (id == SECTION_CHANNEL_FROM_MENU || id == SECTION_CHANNEL_FROM_CHECK_RANKINGS || id == SECTION_CHANNEL_FROM_DOWNLOADS) Debug::LaunchSoftware();
-    else sectionMgr->LoadSection();
+    const SectionId id = sectionMgr->nextSectionId;
+    if (id == SECTION_CHANNEL_FROM_MENU || id == SECTION_CHANNEL_FROM_CHECK_RANKINGS || id == SECTION_CHANNEL_FROM_DOWNLOADS)
+        Debug::LaunchSoftware();
+    else
+        sectionMgr->LoadSection();
 }
 kmCall(0x80553a60, LaunchRiivolutionButton);
 
-//Top left message when a race is about to start in a froom
+// Top left message when a race is about to start in a froom
 static void FixStartMessageFroom(CtrlRaceWifiStartMessage* startMsg, u32 bmgId, Text::Info* info) {
     const SectionMgr* sectionMgr = SectionMgr::sInstance;
     const SectionId id = sectionMgr->curSection->sectionId;
-    if (id == SECTION_P1_WIFI_FRIEND_VS || id == SECTION_P1_WIFI_FRIEND_TEAMVS
-        || id == SECTION_P2_WIFI_FRIEND_VS || id == SECTION_P2_WIFI_FRIEND_TEAMVS) {
+    if (id == SECTION_P1_WIFI_FRIEND_VS || id == SECTION_P1_WIFI_FRIEND_TEAMVS || id == SECTION_P2_WIFI_FRIEND_VS || id == SECTION_P2_WIFI_FRIEND_TEAMVS) {
         const System* system = System::sInstance;
         const u32 raceNumber = sectionMgr->sectionParams->onlineParams.currentRaceNumber + 1;
         bmgId = BMG_GP_RACE;
@@ -58,12 +56,27 @@ static void FixStartMessageFroom(CtrlRaceWifiStartMessage* startMsg, u32 bmgId, 
             const KO::Mgr* koMgr = system->koMgr;
             const u32 playerCount = system->nonTTGhostPlayersCount;
             u32 koCount = 0;
-            if (playerCount == 2) koCount = 1;
+            if (playerCount == 2)
+                koCount = 1;
             else if (raceNumber % koMgr->racesPerKO == 0) {
                 const u32 koPerRace = koMgr->koPerRace;
-                if (playerCount - koPerRace > 1) koCount = koPerRace; //eliminating the setting's amount of players, does not lead in a potential final
-                else koCount = playerCount - (1 + koMgr->alwaysFinal); //check if the setting is on, if it is, leave 2 players, otherwise, leave 1 player/the ko count is the complement
+                if (playerCount - koPerRace > 1)
+                    koCount = koPerRace;  // eliminating the setting's amount of players, does not lead in a potential final
+                else
+                    koCount = playerCount - (1 + koMgr->alwaysFinal);  // check if the setting is on, if it is, leave 2 players, otherwise, leave 1 player/the ko count is the complement
             }
+            bmgId = BMG_KO_ELIM_START_NONE + koCount;
+        } else if (system->IsContext(PULSAR_MODE_LAPKO)) {
+            const LapKO::Mgr* lapKoMgr = system->lapKoMgr;
+            const u32 playerCount = system->nonTTGhostPlayersCount;
+            u32 koCount = 0;
+            if (playerCount == 2)
+                koCount = 1;
+            const u32 koPerRace = lapKoMgr->koPerRaceSetting;
+            if (playerCount - koPerRace > 1)
+                koCount = koPerRace;  // eliminating the setting's amount of players, does not lead in a potential final
+            else
+                koCount = playerCount - 1;  // check if the setting is on, if it is, leave 2 players, otherwise, leave 1 player/the ko count is the complement
             bmgId = BMG_KO_ELIM_START_NONE + koCount;
         }
         info->intToPass[0] = raceNumber;
@@ -88,7 +101,7 @@ kmCall(0x805dd90c, CustomRoomDenyText);
 SectionParams& FavouriteCombo(SectionParams& params) {
     const RKSYS::Mgr* rksysMgr = RKSYS::Mgr::sInstance;
     s32 curLicense = rksysMgr->curLicenseId;
-    if (curLicense >= 0 && U16_CHARACTER == 0x0001) {
+    if (curLicense >= 0) {
         const RKSYS::LicenseMgr& license = rksysMgr->licenses[curLicense];
         CharacterId favChar = license.GetFavouriteCharacter();
         KartId favKart = license.GetFavouriteKart();
@@ -98,14 +111,14 @@ SectionParams& FavouriteCombo(SectionParams& params) {
         if (kartWeight != -1) {
             if (charWeight == -1 || charWeight != kartWeight) {
                 switch (kartWeight) {
-                case 0:
-                    favChar = BABY_DAISY;
-                    break;
-                case 1:
-                    favChar = DAISY;
-                    break;
-                case 2:
-                    favChar = FUNKY_KONG;
+                    case 0:
+                        favChar = BABY_DAISY;
+                        break;
+                    case 1:
+                        favChar = DAISY;
+                        break;
+                    case 2:
+                        favChar = FUNKY_KONG;
                 }
             }
             params.characters[0] = favChar;
@@ -126,12 +139,45 @@ u8 ModifyCheckRankings() {
     asm(fmr animLength, f31;);
     ttEnd->ChangeSectionBySceneChange(SECTION_P1_WIFI, 0, animLength);
     return 0;
-    //ttEnd->EndStateAnimated(0, animLength);
-
+    // ttEnd->EndStateAnimated(0, animLength);
 }
 kmCall(0x8085b4bc, ModifyCheckRankings);
 kmPatchExitPoint(ModifyCheckRankings, 0x8085bbe0);
 
+static bool s_hasSavedCameraParams = false;
+static CameraParamBin s_savedCameraParams;
+CameraParamBin* GetKartParamCamera(u32 weight, u32 screenCount) {
+    CameraParamBin* cameraParam = Kart::Link::GetCameraParamBin(weight, screenCount);
+    if (cameraParam != nullptr && !s_hasSavedCameraParams) {
+        s_savedCameraParams = *cameraParam;
+        s_hasSavedCameraParams = true;
+    }
 
-}//namespace UI
-}//namespace Pulsar
+    FOVChange fovChange = static_cast<FOVChange>(Settings::Mgr::Get().GetUserSettingValue(Settings::SETTINGSTYPE_RACE2, RADIO_FOV));
+    if (fovChange != FOV_CHANGE_DEFAULT) {
+        if (fovChange == FOV_CHANGE_16_9) {
+            for (int i = 0; i < 9; ++i) {
+                s_savedCameraParams.camerasParam[i][0] = cameraParam->camerasParam[i][1];
+                s_savedCameraParams.camerasParam[i][1] = cameraParam->camerasParam[i][1];
+                s_savedCameraParams.camerasParam[i][2] = cameraParam->camerasParam[i][3];
+                s_savedCameraParams.camerasParam[i][3] = cameraParam->camerasParam[i][3];
+            }
+        } else if (fovChange == FOV_CHANGE_4_3) {
+            for (int i = 0; i < 9; ++i) {
+                s_savedCameraParams.camerasParam[i][0] = cameraParam->camerasParam[i][0];
+                s_savedCameraParams.camerasParam[i][1] = cameraParam->camerasParam[i][0];
+                s_savedCameraParams.camerasParam[i][2] = cameraParam->camerasParam[i][2];
+                s_savedCameraParams.camerasParam[i][3] = cameraParam->camerasParam[i][2];
+            }
+        }
+
+        return &s_savedCameraParams;
+    }
+
+    return cameraParam;
+}
+
+kmCall(0x805a20d4, GetKartParamCamera);
+
+}  // namespace UI
+}  // namespace Pulsar

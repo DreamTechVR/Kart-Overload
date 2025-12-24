@@ -1,7 +1,7 @@
 #ifndef _PUL_Debug_
 #define _PUL_Debug_
 
-#include <core/rvl/os/OSError.hpp>
+#include <core/rvl/OS/OSError.hpp>
 
 namespace Pulsar {
 namespace Debug {
@@ -52,7 +52,7 @@ struct ExceptionFile {
     StackFrame frames[10];
 };
 
-}//namespace Debug
-}//namespace Pulsar
+}  // namespace Debug
+}  // namespace Pulsar
 
 #endif

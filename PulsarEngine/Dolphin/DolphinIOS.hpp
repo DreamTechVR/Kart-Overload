@@ -1,6 +1,7 @@
 #ifndef __DOLPHINIOS_HPP
 #define __DOLPHINIOS_HPP
-#include <MKVN.hpp>
+
+#include <RetroRewind.hpp>
 
 namespace Dolphin {
 
@@ -101,7 +102,6 @@ bool SetDiscordPresence(
     u32 partySize,
     u32 partyMax);
 
-
 /**
  * @brief Reset the Discord presence
  * @return Indicates success or failure
@@ -115,6 +115,6 @@ bool ResetDiscord();
  */
 bool GetSystemTime(u64& systemTime);
 
-} // namespace Dolphin
+}  // namespace Dolphin
 
 #endif

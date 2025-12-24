@@ -4,61 +4,101 @@
 #include <MarioKartWii/UI/Page/Other/WFCMenu.hpp>
 #include <Settings/UI/SettingsPanel.hpp>
 
-//Extends WFCMainMenu to add a settings button
+// Extends WFCMainMenu to add a settings button
 namespace Pulsar {
 namespace UI {
+
+static bool s_displayPlayerCount = true;
+
 class ExpWFCMain : public Pages::WFCMainMenu {
-public:
-    ExpWFCMain();
+   public:
+    ExpWFCMain() {
+        this->onSettingsClick.subject = this;
+        this->onSettingsClick.ptmf = &ExpWFCMain::OnSettingsButtonClick;
+        this->onMainClick.subject = this;
+        this->onMainClick.ptmf = &ExpWFCMain::OnMainButtonClick;
+        this->onOtherClick.subject = this;
+        this->onOtherClick.ptmf = &ExpWFCMain::OnOtherButtonClick;
+        this->onBattleClick.subject = this;
+        this->onBattleClick.ptmf = &ExpWFCMain::OnBattleButtonClick;
+        this->onButtonSelectHandler.ptmf = &ExpWFCMain::ExtOnButtonSelect;
+
+        // this->onStartPress.subject = this;
+        // this->onStartPress.ptmf = &ExpWFCMain::ExtOnStartPress;
+    }
     void OnInit() override;
-private:
+    void BeforeControlUpdate() override;
+
+   private:
     void OnSettingsButtonClick(PushButton& PushButton, u32 r5);
     void ExtOnButtonSelect(PushButton& pushButton, u32 hudSlotId);
+    void OnMainButtonClick(PushButton& PushButton, u32 hudSlotId);
+    void OnOtherButtonClick(PushButton& PushButton, u32 hudSlotId);
+    void OnBattleButtonClick(PushButton& PushButton, u32 hudSlotId);
+    // void ExtOnStartPress(u32 hudSlotId) {
+    //     s_displayPlayerCount = !s_displayPlayerCount;
+    // }
+
     PtmfHolder_2A<ExpWFCMain, void, PushButton&, u32> onSettingsClick;
+    PtmfHolder_2A<ExpWFCMain, void, PushButton&, u32> onMainClick;
+    PtmfHolder_2A<ExpWFCMain, void, PushButton&, u32> onOtherClick;
+    PtmfHolder_2A<ExpWFCMain, void, PushButton&, u32> onBattleClick;
+    // PtmfHolder_1A<ExpWFCMain, void, u32> onStartPress;
     PushButton settingsButton;
-public:
+    PushButton mainButton;
+    PushButton otherButton;
+    PushButton battleButton;
+    LayoutUIControl playerCount;
+    LayoutUIControl rankInfo;
+
+   public:
     PulPageId topSettingsPage;
+    static u32 lastClickedMainMenuButton;  // 6 = retros, 7 = customs
 };
 
 class ExpWFCModeSel : public Pages::WFCModeSelect {
-public:
-    ExpWFCModeSel();
-    static void InitOTTButton(ExpWFCModeSel& self);
+   public:
+    ExpWFCModeSel() : region(0xA) {
+        this->onButtonSelectHandler.ptmf = &ExpWFCModeSel::OnModeButtonSelect;
+        this->onModeButtonClickHandler.ptmf = &ExpWFCModeSel::OnModeButtonClick;
+
+        // this->onStartPress.subject = this;
+        // this->onStartPress.ptmf = &ExpWFCModeSel::ExtOnStartPress;
+    }
+    void OnInit() override;
+    void BeforeControlUpdate() override;
+    static void InitButton(ExpWFCModeSel& self);
     static void OnActivatePatch();
-private:
-    void OnModeButtonSelect(PushButton& modeButton, u32 hudSlotId); //8064c718
+    static void ClearModeContexts();
+
+   public:
+    void OnModeButtonSelect(PushButton& modeButton, u32 hudSlotId);  // 8064c718
     void OnModeButtonClick(PushButton& PushButton, u32 r5);
+    // void ExtOnStartPress(u32 hudSlotId) {
+    //     s_displayPlayerCount = !s_displayPlayerCount;
+    // }
+
+    // PtmfHolder_1A<ExpWFCModeSel, void, u32> onStartPress;
+
+    PushButton ctButton;
+    PushButton regButton;
+    PushButton twoHundredButton;
     PushButton ottButton;
-    PushButton countdownButton;
-    PushButton bombblastButton;
-    PushButton accelerationButton;
-    PushButton bananaslipButton;
-    PushButton randomitemsButton;
-    PushButton unfairitemsButton;
-    PushButton bsmadnessButton;
-    PushButton mushroomdashButton;
-    PushButton bumperkartsButton;
-    PushButton itemrampageButton;
-    PushButton itemrainButton;
-    PushButton shellbreakButton;
-    PushButton booststackerButton;
-    u32 lastClickedButton;
-    static const u32 ottButtonId = 4;
-    static const u32 countdownButtonId = 5;
-    static const u32 bombblastButtonId = 6;
-    static const u32 accelerationButtonId = 7;
-    static const u32 bananaslipButtonId = 8;
-    static const u32 randomitemsButtonId = 9;
-    static const u32 unfairitemsButtonId = 10;
-    static const u32 bsmadnessButtonId = 11;
-    static const u32 mushroomdashButtonId = 12;
-    static const u32 bumperkartsButtonId = 13;
-    static const u32 itemrampageButtonId = 14;
-    static const u32 itemrainButtonId = 15;
-    static const u32 shellbreakButtonId = 16;
-    static const u32 booststackerButtonId = 17;
+    PushButton itemRainButton;
+    PushButton RRbattleButton;
+    PushButton RRbattleButtonElim;
+    LayoutUIControl vrButton;
+    static u32 lastClickedButton;
+    u32 region;
+    static const u32 ctButtonId = 4;
+    static const u32 regButtonId = 5;
+    static const u32 twoHundredButtonId = 7;
+    static const u32 ottButtonId = 6;
+    static const u32 itemRainButtonId = 9;
+    static const u32 RRbattleButtonId = 10;
+    static const u32 RRbattleButtonIdElim = 11;
 };
-}//namespace UI
-}//namespace Pulsar
+}  // namespace UI
+}  // namespace Pulsar
 
 #endif
